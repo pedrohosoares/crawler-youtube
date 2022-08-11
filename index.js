@@ -4,6 +4,16 @@ const Parser = require('rss-parser');
 const scrapeYt = require("scrape-yt");
 const mysql = require('mysql2');
 const table_youtube = "youtube_scrapper"
+
+const connection = mysql.createConnection({
+       host: 'crawler-youtube.cl9fk3vdebut.sa-east-1.rds.amazonaws.com',
+        user: 'pedrohosoares',
+        password: '46302113&Aws',
+        database: 'youtube'
+});
+
+    
+
 /*
 CREATE TABLE `youtube_scrapper` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -33,60 +43,76 @@ function dateNow() {
 }
 
 async function updateNewVideos() {
-    const connection = mysql.createConnection({
-        host: 'localhost',
-        user: 'pedrohosoares',
-        password: '46302113',
-        database: 'database'
-    });
-    connection.connect();
     const getVideosDatabase = "SELECT url FROM youtube_scrapper";
-    connection.query(getVideosDatabase, function (error, results, fields) {
+
+    return new Promise((resolve, reject) => {
+        connection.query(getVideosDatabase, async (error, results, fields) => {
         let links = [];
         for (const key in results) {
             links.push(results[key].url);
         }
+
         for (const key in links) {
-            const link = links[key];
-            scrapeYt.getVideo(link, {
-                type: "video"
-            }).then(videos => {
-                videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
-                videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
-                videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
-                let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
-                query += "VALUES('" + videos.id + "', '" + videos.tags.join(',') + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
-                query += "ON DUPLICATE KEY UPDATE views = '" + videos.viewCount + "', likes = '" + videos.likeCount + "', unlikes = '" + videos.dislikeCount + "', updated_at = NOW()";
-                connection.query(query);
-            }).then((r) => {
-                console.log('Atualizado');
-            });
+            try {
+                console.log('Key: ', key)
+    
+                const link = links[key];
+    
+                console.log('LInk: ', link)
+    
+                await scrapeYt.getVideo(link, {
+                    type: "video"
+                }).then(videos => {
+                    videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
+                    videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
+                    videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
+                    let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
+                    query += "VALUES('" + videos.id + "', '" + videos.tags.join(',') + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
+                    query += "ON DUPLICATE KEY UPDATE views = '" + videos.viewCount + "', likes = '" + videos.likeCount + "', unlikes = '" + videos.dislikeCount + "', updated_at = NOW()";
+                    return connection.execute(query);
+                }).then((r) => {
+                    console.log('Atualizado');
+                });
+            }catch {}
         }
+
+        resolve()
     });
+    })
+
+    
 }
 
 async function addNewVideos() {
-    const xmldata = "https://www.youtube.com/feeds/videos.xml?playlist_id=PLRD1Niz0lz1sdjsiBsYN6nT1aJQTWvF-a";
+    const xmldata = "https://www.youtube.com/feeds/videos.xml?channel_id=UC4g5C1dxdEDIz6O46pAf-vw";
     let feed = await parser.parseURL(xmldata);
     const links = []
+
     feed.items.forEach(item => {
         links.push(item.link.split('watch?v=')[1]);
     });
-    links.forEach((link) => {
-        scrapeYt.getVideo(link, {
-            type: "video"
-        }).then(videos => {
-            videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
-            videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
-            videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
-            let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
-            query += "VALUES('" + videos.id + "', '" + videos.tags.join(',') + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
-            query += "ON DUPLICATE KEY UPDATE views = '" + videos.viewCount + "', likes = '" + videos.likeCount + "', unlikes = '" + videos.dislikeCount + "', updated_at = NOW()";
-            connection.query(query);
-        }).then((r) => {
-            console.log('Inserido');
-        });
-    });
+
+    return new Promise(async (resolve) => {
+        for(const link of links) {
+            try {
+                await scrapeYt.getVideo(link, {
+                    type: "video"
+                }).then(videos => {
+                    videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
+                    videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
+                    videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
+                    let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
+                    query += "VALUES('" + videos.id + "', '" + videos.tags.join(',') + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
+                    query += "ON DUPLICATE KEY UPDATE views = '" + videos.viewCount + "', likes = '" + videos.likeCount + "', unlikes = '" + videos.dislikeCount + "', updated_at = NOW()";
+                    connection.query(query);
+                }).then((r) => {
+                    console.log('Inserido');
+                });
+            }catch {}
+        }
+
+        resolve()
+    })
 }
 
 async function insertVideos() {
@@ -172,9 +198,18 @@ async function relationTagWithPost() {
 
 
 }
-updateNewVideos();
-addNewVideos();
 
+
+async function exec() {
+    connection.connect();
+
+    await updateNewVideos();
+    await addNewVideos();
+
+    connection.end()
+}
+
+exec()
 
 //relationTagWithPost();
 /*
