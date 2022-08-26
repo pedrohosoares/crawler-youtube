@@ -11,7 +11,7 @@ const connection = mysql.createConnection({
     password: '46302113',
     database: 'top_franquias'
 });
-
+const regex = /(?![\x00-\x7F]|[\xC0-\xDF][\x80-\xBF]|[\xE0-\xEF][\x80-\xBF]{2}|[\xF0-\xF7][\x80-\xBF]{3})./g;
 
 
 /*
@@ -51,6 +51,7 @@ function cleanString(input) {
     }
     return output;
 }
+
 
 async function getSpecificVideos(idVideo) {
     try {
@@ -92,7 +93,7 @@ async function updateNewVideos() {
                         videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
                         videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
                         videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
-                        videos.tags = cleanString(videos.tags);
+                        videos.tags = videos.tags.replace(regex,'');
                         videos.tags = (videos.tags == null) ? '' : videos.tags.join(',');
                         let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
                         query += "VALUES('" + videos.id + "', '" + videos.tags + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
@@ -129,7 +130,7 @@ async function addNewVideos() {
                     videos.dislikeCount = (videos.dislikeCount == null) ? 0 : videos.dislikeCount;
                     videos.viewCount = (videos.viewCount == null) ? 0 : videos.viewCount;
                     videos.likeCount = (videos.likeCount == null) ? 0 : videos.likeCount;
-                    videos.tags = cleanString(videos.tags);
+                    videos.tags = videos.tags.replace(regex,'');
                     videos.tags = (videos.tags == null) ? '' : videos.tags.join(',');
                     let query = "INSERT INTO " + table_youtube + " (url,tags,views,likes,unlikes,updated_at) ";
                     query += "VALUES('" + videos.id + "', '" + videos.tags + "', '" + videos.viewCount + "', '" + videos.likeCount + "', '" + videos.dislikeCount + "',NOW()) ";
